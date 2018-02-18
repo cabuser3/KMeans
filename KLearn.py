@@ -1,120 +1,180 @@
-
-# coding: utf-8
-
-# In[1]:
-
-
-# from copy import deepcopy
+from collections import defaultdict
+import math
+%matplotlib inline
+import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
-from copy import deepcopy
-from mpl_toolkits.mplot3d import Axes3D
-get_ipython().magic('matplotlib inline')
-#%matplotlib inline
-from matplotlib import pyplot as plt
-plt.rcParams['figure.figsize'] = (16, 9)
-plt.style.use('ggplot')
-
-# Importing the dataset
-data = pd.read_csv('C:\\Users\\himverma\\AnacondaProjects\\KMeans\\xclaraOriginal.csv')
-print("Input Data and Shape")
-print(data.shape)
-data.head()
-
-# Getting the values and plotting it
-f1 = data['V1'].values
-f2 = data['V2'].values
-X = np.array(list(zip(f1, f2)))
-plt.scatter(f1, f2, c='black', s=7)
-
-# Euclidean Distance Caculator
-def dist(a, b, ax=1):
-    return np.linalg.norm(a - b, axis=ax)
-
-# Number of clusters
-clusterNumber = 3
-# X coordinates of random centroids
-C_x = np.random.randint(0, np.max(X)-20, size=clusterNumber)
-#print (C_x)
-# Y coordinates of random centroids
-C_y = np.random.randint(0, np.max(X)-20, size=clusterNumber)
-#print (C_y)
-C = np.array(list(zip(C_x, C_y)), dtype=np.float32)
-print("Initial Centroids")
-print(C)
-
-# Plotting along with the Centroids
-plt.scatter(f1, f2, c='#050505', s=8)
-plt.scatter(C_x, C_y, marker='*', s=200, c='g')
-plt.title('Initial Centroids (2D):: ')
-
-# To store the value of centroids when it updates
-C_old = np.zeros(C.shape)
-# Cluster Lables(0, 1, 2)
-clusters = np.zeros(len(X))
-# Error func. - Distance between new centroids and old centroids
-error = dist(C, C_old, None)
-# Loop will run till the error becomes zero
-while error != 0:
-    # Assigning each value to its closest cluster
-    for i in range(len(X)):
-        distances = dist(X[i], C)
-        cluster = np.argmin(distances)
-        clusters[i] = cluster
-    # Storing the old centroid values
-    C_old = deepcopy(C)
-    # Finding the new centroids by taking the average value
-    for i in range(clusterNumber):
-        points = [X[j] for j in range(len(X)) if clusters[j] == i]
-        C[i] = np.mean(points, axis=0)
-        error = dist(C, C_old, None)
-
-colors = ['r', 'g', 'b', 'y', 'c', 'm']
-fig, ax = plt.subplots()
-plt.title('Logic Results in 2D:: ')
-for i in range(clusterNumber):
-        points = np.array([X[j] for j in range(len(X)) if clusters[j] == i])
-        ax.scatter(points[:, 0], points[:, 1], s=7, c=colors[i])
-        ax.scatter(C[:, 0], C[:, 1], marker='*', s=200, c='#050505')
-
-fig1 = plt.figure()
-ax1 = Axes3D(fig1)
-plt.title('Logic Results in 3D:: ')
-for i in range(clusterNumber):
-        points = np.array([X[j] for j in range(len(X)) if clusters[j] == i])
-        ax1.scatter(points[:, 0], points[:, 1], s=7, c=colors[i])
-        ax1.scatter(C[:, 0], C[:, 1], marker='*', c='#050505', s=1000)
-
-
-'''
-==========================================================
-sk-learn
-==========================================================
-'''
-
 from sklearn.cluster import KMeans
+import pandas as pd
 
-# Number of clusters
-kmeans = KMeans(n_clusters=clusterNumber)
-# Fitting the input data
-kmeans = kmeans.fit(X)
-# Getting the cluster labels
-labels = kmeans.predict(X)
-# Centroid values
-centroids = kmeans.cluster_centers_
+# Cluste size.
+K = 5
+#MAX_ITER = 3;
 
-# Comparing with scikit-learn centroids
-print("Centroid values:: ")
-print("From Logic-")
-print(C) # From Logic
-print("From sklearn-")
-print(centroids) # From sci-kit learn
+# List of cluster with its points in it.
+CLUSTER = defaultdict(list);
 
-colors = ['r', 'g', 'b', 'y', 'c', 'm']
-fig2, ax2 = plt.subplots()
-plt.title('sklearn Results:: ')
-for i in range(clusterNumber):
-            print("coordinate:",X[i], "label:", labels[i])
-            points=np.array([X[j] for j in range(len(X)) if labels[j] == i])
-            ax2.scatter(points[:, 0], points[:, 1], s=7, c=colors[i])
-            ax2.scatter(centroids[:, 0], centroids[:, 1], marker='*', s=200, c='#050505')
+# Kmean model.
+model = KMeans(n_clusters=K, max_iter=300)
+
+
+# Anomoly threshold. Need to be tuned to avoid over / under fitting.
+Thres = 0.95
+
+# Data frames loaded from csv.
+df = pd.read_csv('C:\\Users\\himverma\\AnacondaProjects\\KMeans\\xclaraOriginal.csv')
+#print(df.describe())
+#print(df.shape)
+
+def distance(x, y):
+    """
+    Find distance between two points in a plain.
+    @param x: 2D point.
+    @param y: 2D point.
+    
+    @return euclidean distance between this point.
+    """
+    d1 = x[0] - y[0];
+    d2 = x[1] - y[1];
+    distance = math.sqrt(d1*d1 + d2*d2)
+    return distance
+
+
+def print_cluster_details(clusters, centroids):
+    for index, cluster in clusters.items():
+        print ("Cluster: {} size: {}".format(index, len(cluster)))
+
+        
+def dump_cluster_points(df, labels):
+    """
+    @param clusters: dataframe
+    
+    Dump points of the cluster in csv file named as cluster_{#index}.csv
+    """
+    clusters = aggregate_cluster_points(df, labels)
+    for index, cluster in clusters.items():
+        with open("C:\\Users\\himverma\\AnacondaProjects\\KMeans\\cluster_{}.csv".format(index), "w") as f:
+            f.write("\n".join(["{},{}".format(p[0], p[1]) for p in cluster]))
+            
+def aggregate_cluster_points(df, labels):
+    """
+    Helper methods to aggregate the cluster points based on the label index.
+    
+    @param df: List of points or datapoints
+    @param labels: Cluster index list for each element in points.
+
+    @return List of cluster points, indexed with cluster index.
+    """
+    clusters = defaultdict(list)
+    #print("labels",labels)
+    for index, value in enumerate(labels):
+        clusters[value].append(df.values[index])
+   # print ("clusters",clusters)
+    return clusters
+    
+
+def get_outliers_and_strip_cluster(cluster_points, centroid):
+    """
+    Apply ODIN algorithm to identify anomalies in the cluster and
+    strip it.
+    
+    Anomaly detection rule:- 
+    
+    sqrt(point^2 - centroid^2) / max(points) > T === True then it's an anomaly.
+    
+    @param cluster_points: List of points in this cluster.
+    @param centroid: centroid of the cluster.
+    @return: outliers, new_cluster
+    """
+    #print("clusterPoints",cluster_points)
+    d_vector = np.array([distance(point, centroid)
+                         for point in cluster_points])
+    d_max = d_vector.max();
+    #print("d_max",d_max)
+    data = pd.DataFrame([distance(centroid, point) / d_max
+                         for point in cluster_points])
+    #print("data",data)
+#     print data.min(), d_max
+    outliers = filter(lambda row: distance(centroid, row) / d_max > Thres,
+                      cluster_points)
+    new_cluster = filter(lambda row: distance(centroid, row) / d_max <= Thres,
+                         cluster_points)
+    
+   # print ("cluster_points",cluster_points)
+    #print("centroid",centroid)
+    #for i in cluster_points:
+        #print("distance",distance(centroid,i)/d_max)
+        #print(distance(centroid, row) / d_max)
+        #print ("Original cluster size: ",len(cluster_points))
+    return outliers, new_cluster
+
+
+def run_outlier_removal_clustering(df, max_iteration):
+    """
+    Run ORC Outlier removal clustering on the datapoints. 
+    Clustering Algorithm - KMean
+    Outlier removal Algorithm - ODIN a Knn based outlier detection.
+    """
+    orc_model = KMeans(n_clusters=K, max_iter=MAX_ITER)
+    OUTLIERS = []
+    for iteration in range(max_iteration):
+        # Iteration.
+        #print "\n\n[{}] ===> Data before clustering: {}, Anomaly: {}".format(
+        #iteration, df.shape, len(OUTLIERS))
+        orc_model.fit(df)
+        labels = orc_model.labels_
+
+        CLUSTER = aggregate_cluster_points(df, labels)
+        centroids = orc_model.cluster_centers_
+        
+        NEW_CLUSTER = []
+        for index, cluster in CLUSTER.items():
+            #print ("Cluster: {} size: {}".format(index, len(cluster)))
+            outlier, new_cluster = get_outliers_and_strip_cluster(cluster,
+                                                                  centroids[index])
+
+            OUTLIERS.extend(outlier)
+            NEW_CLUSTER.extend(new_cluster)
+            #print("outliers",OUTLIERS)
+            #print("new_cluster",NEW_CLUSTER)
+        # Update the cluster with new cluster.
+        df = pd.DataFrame(data=NEW_CLUSTER)
+        
+    # Fit for the one more time, as the when loop exists we removed few anomolies.
+    orc_model.fit(df)
+
+    return df, orc_model, OUTLIERS
+    
+    
+# Run Clustering with Outlier removal algorithm.
+df, orc_model, outliers = run_outlier_removal_clustering(df, 1)
+
+
+
+# Dump the final cluster and anomalies into csv file.
+print_cluster_details(aggregate_cluster_points(df, orc_model.labels_),
+                      orc_model.cluster_centers_)
+print ("Total anomalies: {}".format(len(outliers)))
+print ("Exported the cluster and anomalies into csv files")
+dump_cluster_points(df, orc_model.labels_)
+with open("C:\\Users\\himverma\\AnacondaProjects\\KMeans\\anomalies.csv", 'w') as f:
+    f.write("\n".join(["{},{}".format(p[0], p[1]) for p in outliers]))
+    
+
+# Plot the Original and new cluster after anomaly removal.
+plt.figure(figsize=(12,4))
+colormap = np.array(['red', 'lime', 'blue', 'green', 'yellow'])
+df.columns = ['x', 'y']
+
+data = pd.read_csv('C:\\Users\\himverma\\AnacondaProjects\\KMeans\\xclaraOriginal.csv')
+plt.subplot(1, 3, 1)
+plt.scatter(data.V1, data.V2, s=20)
+plt.title("Without clustering")
+
+plt.subplot(1, 3, 2)
+_kmean = model.fit(data)
+plt.scatter(data.V1, data.V2, c=colormap[_kmean.labels_], s=20)
+plt.title("KMean Clustering")
+
+plt.subplot(1, 3, 3)
+plt.scatter(df.x, df.y, c=colormap[orc_model.labels_], s=20)
+plt.title("ORC clustering")
