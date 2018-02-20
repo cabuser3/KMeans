@@ -8,20 +8,19 @@ import pandas as pd
 
 # Cluste size.
 K = 5
-#MAX_ITER = 3;
+#MAX_ITER = 300;
 
 # List of cluster with its points in it.
 CLUSTER = defaultdict(list);
 
 # Kmean model.
-model = KMeans(n_clusters=K, max_iter=300)
-
+model = KMeans(n_clusters=K)
 
 # Anomoly threshold. Need to be tuned to avoid over / under fitting.
 Thres = 0.95
 
 # Data frames loaded from csv.
-df = pd.read_csv('C:\\Users\\himverma\\AnacondaProjects\\KMeans\\xclaraOriginal.csv')
+df = pd.read_csv('C:\\Users\\himverma\\AnacondaProjects\\KMeans\\data.csv')
 #print(df.describe())
 #print(df.shape)
 
@@ -114,7 +113,7 @@ def run_outlier_removal_clustering(df, max_iteration):
     Clustering Algorithm - KMean
     Outlier removal Algorithm - ODIN a Knn based outlier detection.
     """
-    orc_model = KMeans(n_clusters=K, max_iter=MAX_ITER)
+    orc_model = KMeans(n_clusters=K)
     OUTLIERS = []
     for iteration in range(max_iteration):
         # Iteration.
@@ -148,8 +147,6 @@ def run_outlier_removal_clustering(df, max_iteration):
 # Run Clustering with Outlier removal algorithm.
 df, orc_model, outliers = run_outlier_removal_clustering(df, 1)
 
-
-
 # Dump the final cluster and anomalies into csv file.
 print_cluster_details(aggregate_cluster_points(df, orc_model.labels_),
                       orc_model.cluster_centers_)
@@ -165,16 +162,17 @@ plt.figure(figsize=(12,4))
 colormap = np.array(['red', 'lime', 'blue', 'green', 'yellow'])
 df.columns = ['x', 'y']
 
-data = pd.read_csv('C:\\Users\\himverma\\AnacondaProjects\\KMeans\\xclaraOriginal.csv')
+data = pd.read_csv('C:\\Users\\himverma\\AnacondaProjects\\KMeans\\data.csv')
+data.columns = ['x', 'y']
 plt.subplot(1, 3, 1)
-plt.scatter(data.V1, data.V2, s=20)
+plt.scatter(data.x, data.y, s=20)
 plt.title("Without clustering")
 
 plt.subplot(1, 3, 2)
 _kmean = model.fit(data)
-plt.scatter(data.V1, data.V2, c=colormap[_kmean.labels_], s=20)
+plt.scatter(data.x,data.y, c=colormap[_kmean.labels_], s=20)
 plt.title("KMean Clustering")
 
 plt.subplot(1, 3, 3)
 plt.scatter(df.x, df.y, c=colormap[orc_model.labels_], s=20)
-plt.title("ORC clustering")
+plt.title("ORC clustering(removing outliers)")
